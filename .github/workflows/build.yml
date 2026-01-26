@@ -46,7 +46,6 @@ jobs:
   publish:
     runs-on: windows-latest
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
     - name: Checkout repository
@@ -60,24 +59,12 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
 
-    - name: Publish self-contained
-      run: |
-        dotnet publish ${{ env.PROJECT_PATH }} -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish/self-contained
+    - name: Publish single-file executable
+      run: dotnet publish ${{ env.PROJECT_PATH }} -c Release -o ./publish
 
-    - name: Publish framework-dependent
-      run: |
-        dotnet publish ${{ env.PROJECT_PATH }} -c Release -r win-x64 --self-contained false -o ./publish/framework-dependent
-
-    - name: Upload self-contained artifact
+    - name: Upload executable artifact
       uses: actions/upload-artifact@v4
       with:
-        name: UIScrape-SelfContained-win-x64
-        path: ./publish/self-contained/
-        retention-days: 90
-
-    - name: Upload framework-dependent artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: UIScrape-FrameworkDependent-win-x64
-        path: ./publish/framework-dependent/
+        name: UIScrape-win-x64
+        path: ./publish/UIScrape.exe
         retention-days: 90
