@@ -16,6 +16,12 @@ public class UIElementInfo
     public int ChildCount { get; set; }
     public int Depth { get; set; }
 
+    // New properties for element identification
+    public string TreePath { get; set; } = string.Empty;
+    public int SiblingIndex { get; set; }
+    public int[] RuntimeId { get; set; } = Array.Empty<int>();
+    public string ProcessName { get; set; } = string.Empty;
+
     public ObservableCollection<UIElementInfo> Children { get; set; } = new();
 
     public string DisplayName
@@ -38,6 +44,10 @@ public class UIElementInfo
         }
     }
 
+    public string RuntimeIdString => RuntimeId.Length > 0
+        ? string.Join(".", RuntimeId)
+        : "(none)";
+
     public string Details
     {
         get
@@ -49,6 +59,8 @@ public class UIElementInfo
                 $"Name: {(string.IsNullOrEmpty(Name) ? "(none)" : Name)}",
                 $"Automation ID: {(string.IsNullOrEmpty(AutomationId) ? "(none)" : AutomationId)}",
                 $"Class Name: {(string.IsNullOrEmpty(ClassName) ? "(none)" : ClassName)}",
+                $"Runtime ID: {RuntimeIdString}",
+                $"Sibling Index: {SiblingIndex}",
                 $"Is Enabled: {IsEnabled}",
                 $"Is Offscreen: {IsOffscreen}",
                 $"Bounding Rect: {BoundingRectangle}",
@@ -61,4 +73,41 @@ public class UIElementInfo
             return string.Join(Environment.NewLine, lines);
         }
     }
+
+    /// <summary>
+    /// Generates a C# code snippet to find this element using UI Automation
+    /// </summary>
+    public string FinderCodeSnippet
+    {
+        get
+        {
+            var conditions = new List<string>();
+
+            // Prefer AutomationId if available
+            if (!string.IsNullOrEmpty(AutomationId))
+            {
+                conditions.Add($"new PropertyCondition(AutomationElement.AutomationIdProperty, \"{AutomationId}\")");
+            }
+
+            // Add ControlType
+            conditions.Add($"new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.{ControlType})");
+
+            // Add Name if available and no AutomationId
+            if (!string.IsNullOrEmpty(Name) && string.IsNullOrEmpty(AutomationId))
+            {
+                conditions.Add($"new PropertyCondition(AutomationElement.NameProperty, \"{EscapeString(Name)}\")");
+            }
+
+            if (conditions.Count == 1)
+            {
+                return $"element.FindFirst(TreeScope.Descendants,\n    {conditions[0]});";
+            }
+            else
+            {
+                return $"element.FindFirst(TreeScope.Descendants,\n    new AndCondition(\n        {string.Join(",\n        ", conditions)}));";
+            }
+        }
+    }
+
+    private static string EscapeString(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 }

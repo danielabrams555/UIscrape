@@ -104,7 +104,7 @@
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="350"/>
+                <ColumnDefinition Width="420"/>
             </Grid.ColumnDefinitions>
 
             <!-- Element List/Tree -->
@@ -215,6 +215,7 @@
                                            FontSize="14" FontWeight="SemiBold"
                                            TextWrapping="Wrap" Margin="0,0,0,16"/>
 
+                                <!-- Properties -->
                                 <Border Background="{StaticResource BackgroundBrush}"
                                         CornerRadius="4" Padding="12">
                                     <TextBlock Text="{Binding SelectedElement.Details}"
@@ -222,6 +223,7 @@
                                                TextWrapping="Wrap"/>
                                 </Border>
 
+                                <!-- Value -->
                                 <TextBlock Text="Value:" FontWeight="SemiBold" Margin="0,16,0,4"
                                            Visibility="{Binding SelectedElement.Value, Converter={StaticResource StringToVisibilityConverter}}"/>
                                 <Border Background="{StaticResource BackgroundBrush}"
@@ -230,6 +232,27 @@
                                     <TextBlock Text="{Binding SelectedElement.Value}"
                                                FontFamily="Consolas" FontSize="12"
                                                TextWrapping="Wrap"/>
+                                </Border>
+
+                                <!-- Tree Path -->
+                                <TextBlock Text="Tree Path:" FontWeight="SemiBold" Margin="0,16,0,4"/>
+                                <Border Background="{StaticResource BackgroundBrush}"
+                                        CornerRadius="4" Padding="12">
+                                    <TextBox Text="{Binding SelectedElement.TreePath, Mode=OneWay}"
+                                             FontFamily="Consolas" FontSize="11"
+                                             TextWrapping="Wrap" IsReadOnly="True"
+                                             BorderThickness="0" Background="Transparent"/>
+                                </Border>
+
+                                <!-- Finder Code -->
+                                <TextBlock Text="C# Finder Code:" FontWeight="SemiBold" Margin="0,16,0,4"/>
+                                <Border Background="{StaticResource BackgroundBrush}"
+                                        CornerRadius="4" Padding="12">
+                                    <TextBox Text="{Binding SelectedElement.FinderCodeSnippet, Mode=OneWay}"
+                                             FontFamily="Consolas" FontSize="11"
+                                             TextWrapping="Wrap" IsReadOnly="True"
+                                             BorderThickness="0" Background="Transparent"
+                                             AcceptsReturn="True"/>
                                 </Border>
                             </StackPanel>
                         </StackPanel>

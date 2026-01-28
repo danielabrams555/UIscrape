@@ -145,8 +145,9 @@ public partial class MainViewModel : ObservableObject
         try
         {
             // Get both tree and flat list
-            var treeTask = _automationService.GetUIElementsAsync(SelectedProcess.MainWindowHandle, token);
-            var flatTask = _automationService.GetFlatUIElementListAsync(SelectedProcess.MainWindowHandle, token);
+            var processName = SelectedProcess.ProcessName;
+            var treeTask = _automationService.GetUIElementsAsync(SelectedProcess.MainWindowHandle, processName, token);
+            var flatTask = _automationService.GetFlatUIElementListAsync(SelectedProcess.MainWindowHandle, processName, token);
 
             await Task.WhenAll(treeTask, flatTask);
 

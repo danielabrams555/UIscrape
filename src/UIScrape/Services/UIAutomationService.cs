@@ -48,6 +48,7 @@ public class UIAutomationService
 
     public async Task<ObservableCollection<UIElementInfo>> GetUIElementsAsync(
         IntPtr windowHandle,
+        string processName = "",
         CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
@@ -59,14 +60,13 @@ public class UIAutomationService
                 var rootElement = AutomationElement.FromHandle(windowHandle);
                 if (rootElement != null)
                 {
-                    var rootInfo = CreateElementInfo(rootElement, 0);
-                    PopulateChildren(rootElement, rootInfo, 1, cancellationToken);
+                    var rootInfo = CreateElementInfo(rootElement, 0, "", 0, processName);
+                    PopulateChildren(rootElement, rootInfo, 1, rootInfo.TreePath, processName, cancellationToken);
                     elements.Add(rootInfo);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // Return empty collection on error
                 System.Diagnostics.Debug.WriteLine($"Error getting UI elements: {ex.Message}");
             }
 
@@ -76,6 +76,7 @@ public class UIAutomationService
 
     public async Task<List<UIElementInfo>> GetFlatUIElementListAsync(
         IntPtr windowHandle,
+        string processName = "",
         CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
@@ -87,7 +88,7 @@ public class UIAutomationService
                 var rootElement = AutomationElement.FromHandle(windowHandle);
                 if (rootElement != null)
                 {
-                    CollectElementsFlat(rootElement, elements, 0, cancellationToken);
+                    CollectElementsFlat(rootElement, elements, 0, "", processName, cancellationToken);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -103,6 +104,8 @@ public class UIAutomationService
         AutomationElement element,
         List<UIElementInfo> elements,
         int depth,
+        string parentPath,
+        string processName,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -110,7 +113,7 @@ public class UIAutomationService
         if (depth > MaxDepth)
             return;
 
-        var info = CreateElementInfo(element, depth);
+        var info = CreateElementInfo(element, depth, parentPath, 0, processName);
         elements.Add(info);
 
         try
@@ -118,10 +121,18 @@ public class UIAutomationService
             var children = element.FindAll(TreeScope.Children, Condition.TrueCondition);
             info.ChildCount = children.Count;
 
+            // Track sibling indices by control type
+            var siblingCounts = new Dictionary<string, int>();
+
             foreach (AutomationElement child in children)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                CollectElementsFlat(child, elements, depth + 1, cancellationToken);
+
+                var childType = child.Current.ControlType.ProgrammaticName.Replace("ControlType.", "");
+                siblingCounts.TryGetValue(childType, out int siblingIndex);
+                siblingCounts[childType] = siblingIndex + 1;
+
+                CollectElementsFlat(child, elements, depth + 1, info.TreePath, processName, cancellationToken);
             }
         }
         catch (ElementNotAvailableException)
@@ -134,6 +145,8 @@ public class UIAutomationService
         AutomationElement element,
         UIElementInfo parentInfo,
         int depth,
+        string parentPath,
+        string processName,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -146,14 +159,21 @@ public class UIAutomationService
             var children = element.FindAll(TreeScope.Children, Condition.TrueCondition);
             parentInfo.ChildCount = children.Count;
 
+            // Track sibling indices by control type
+            var siblingCounts = new Dictionary<string, int>();
+
             foreach (AutomationElement child in children)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var childInfo = CreateElementInfo(child, depth);
+                var childType = child.Current.ControlType.ProgrammaticName.Replace("ControlType.", "");
+                siblingCounts.TryGetValue(childType, out int siblingIndex);
+                siblingCounts[childType] = siblingIndex + 1;
+
+                var childInfo = CreateElementInfo(child, depth, parentPath, siblingIndex, processName);
                 parentInfo.Children.Add(childInfo);
 
-                PopulateChildren(child, childInfo, depth + 1, cancellationToken);
+                PopulateChildren(child, childInfo, depth + 1, childInfo.TreePath, processName, cancellationToken);
             }
         }
         catch (ElementNotAvailableException)
@@ -162,11 +182,13 @@ public class UIAutomationService
         }
     }
 
-    private UIElementInfo CreateElementInfo(AutomationElement element, int depth)
+    private UIElementInfo CreateElementInfo(AutomationElement element, int depth, string parentPath, int siblingIndex, string processName)
     {
         var info = new UIElementInfo
         {
-            Depth = depth
+            Depth = depth,
+            SiblingIndex = siblingIndex,
+            ProcessName = processName
         };
 
         try
@@ -178,6 +200,16 @@ public class UIAutomationService
             info.ClassName = element.Current.ClassName ?? string.Empty;
             info.IsEnabled = element.Current.IsEnabled;
             info.IsOffscreen = element.Current.IsOffscreen;
+
+            // Get RuntimeId
+            var runtimeId = element.GetRuntimeId();
+            info.RuntimeId = runtimeId ?? Array.Empty<int>();
+
+            // Build tree path (XPath-like)
+            var pathSegment = BuildPathSegment(info);
+            info.TreePath = string.IsNullOrEmpty(parentPath)
+                ? pathSegment
+                : $"{parentPath}/{pathSegment}";
 
             var rect = element.Current.BoundingRectangle;
             if (!rect.IsEmpty)
@@ -198,5 +230,29 @@ public class UIAutomationService
         }
 
         return info;
+    }
+
+    private static string BuildPathSegment(UIElementInfo info)
+    {
+        var segment = info.ControlType;
+
+        // Add identifying attribute if available
+        if (!string.IsNullOrEmpty(info.AutomationId))
+        {
+            segment += $"[@AutomationId='{info.AutomationId}']";
+        }
+        else if (!string.IsNullOrEmpty(info.Name))
+        {
+            // Truncate long names
+            var name = info.Name.Length > 30 ? info.Name[..30] + "..." : info.Name;
+            segment += $"[@Name='{name}']";
+        }
+        else
+        {
+            // Use sibling index when no identifier available
+            segment += $"[{info.SiblingIndex}]";
+        }
+
+        return segment;
     }
 }
