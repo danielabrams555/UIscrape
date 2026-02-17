@@ -223,6 +223,12 @@ public class UIAutomationService
                 var valuePattern = (ValuePattern)pattern;
                 info.Value = valuePattern.Current.Value ?? string.Empty;
             }
+
+            // Store reference for interaction testing
+            info.AutomationElementRef = element;
+
+            // Detect supported patterns
+            info.SupportedPatterns = UIInteractionService.DetectSupportedPatterns(element);
         }
         catch (ElementNotAvailableException)
         {

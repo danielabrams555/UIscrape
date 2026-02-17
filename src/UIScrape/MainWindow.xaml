@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:viewmodels="clr-namespace:UIScrape.ViewModels"
         xmlns:models="clr-namespace:UIScrape.Models"
-        Title="UI Scrape - Windows UI Element Inspector"
-        Height="700" Width="1100"
-        MinHeight="500" MinWidth="800"
+        Title="UI Scrape - Windows UI Element Inspector &amp; Interaction Tester"
+        Height="800" Width="1300"
+        MinHeight="600" MinWidth="900"
         Background="{StaticResource BackgroundBrush}"
         WindowStartupLocation="CenterScreen">
 
@@ -42,7 +42,7 @@
                           IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
                           VerticalAlignment="Center"/>
 
-                <Button Grid.Column="2" Content="↻ Refresh List"
+                <Button Grid.Column="2" Content="Refresh List"
                         Command="{Binding LoadProcessesCommand}"
                         Style="{StaticResource PrimaryButton}"
                         Margin="12,0,0,0"/>
@@ -62,7 +62,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Content="🔍 Scan Now"
+                <Button Grid.Column="0" Content="Scan Now"
                         Command="{Binding RefreshElementsCommand}"
                         Style="{StaticResource PrimaryButton}"
                         IsEnabled="{Binding SelectedProcess, Converter={StaticResource NullToBoolConverter}}"/>
@@ -104,7 +104,7 @@
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="500"/>
             </Grid.ColumnDefinitions>
 
             <!-- Element List/Tree -->
@@ -190,74 +190,253 @@
                 </Grid>
             </Border>
 
-            <!-- Element Details Panel -->
+            <!-- Right Panel: Details + Interaction Testing -->
             <Border Grid.Column="1" Background="{StaticResource SurfaceBrush}"
-                    CornerRadius="8" Padding="16">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+                    CornerRadius="8">
+                <TabControl BorderThickness="0" Background="Transparent" Padding="0">
+                    <TabControl.Resources>
+                        <Style TargetType="TabItem">
+                            <Setter Property="Padding" Value="16,8"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Style>
+                    </TabControl.Resources>
 
-                    <TextBlock Grid.Row="0" Text="Element Details"
-                               FontSize="16" FontWeight="SemiBold"
-                               Margin="0,0,0,16"/>
+                    <!-- Tab 1: Element Details -->
+                    <TabItem Header="Element Details">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="Select an element to view details"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontStyle="Italic"
+                                           Visibility="{Binding SelectedElement, Converter={StaticResource NullToVisibilityConverter}}"/>
 
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <StackPanel>
-                            <TextBlock Text="Select an element to view details"
+                                <StackPanel Visibility="{Binding SelectedElement, Converter={StaticResource NotNullToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding SelectedElement.DisplayName}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                                    <!-- Properties -->
+                                    <Border Background="{StaticResource BackgroundBrush}"
+                                            CornerRadius="4" Padding="12">
+                                        <TextBlock Text="{Binding SelectedElement.Details}"
+                                                   FontFamily="Consolas" FontSize="12"
+                                                   TextWrapping="Wrap"/>
+                                    </Border>
+
+                                    <!-- Value -->
+                                    <TextBlock Text="Value:" FontWeight="SemiBold" Margin="0,16,0,4"
+                                               Visibility="{Binding SelectedElement.Value, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    <Border Background="{StaticResource BackgroundBrush}"
+                                            CornerRadius="4" Padding="12"
+                                            Visibility="{Binding SelectedElement.Value, Converter={StaticResource StringToVisibilityConverter}}">
+                                        <TextBlock Text="{Binding SelectedElement.Value}"
+                                                   FontFamily="Consolas" FontSize="12"
+                                                   TextWrapping="Wrap"/>
+                                    </Border>
+
+                                    <!-- Tree Path -->
+                                    <TextBlock Text="Tree Path:" FontWeight="SemiBold" Margin="0,16,0,4"/>
+                                    <Border Background="{StaticResource BackgroundBrush}"
+                                            CornerRadius="4" Padding="12">
+                                        <TextBox Text="{Binding SelectedElement.TreePath, Mode=OneWay}"
+                                                 FontFamily="Consolas" FontSize="11"
+                                                 TextWrapping="Wrap" IsReadOnly="True"
+                                                 BorderThickness="0" Background="Transparent"/>
+                                    </Border>
+
+                                    <!-- Finder Code -->
+                                    <TextBlock Text="C# Finder Code:" FontWeight="SemiBold" Margin="0,16,0,4"/>
+                                    <Border Background="{StaticResource BackgroundBrush}"
+                                            CornerRadius="4" Padding="12">
+                                        <TextBox Text="{Binding SelectedElement.FinderCodeSnippet, Mode=OneWay}"
+                                                 FontFamily="Consolas" FontSize="11"
+                                                 TextWrapping="Wrap" IsReadOnly="True"
+                                                 BorderThickness="0" Background="Transparent"
+                                                 AcceptsReturn="True"/>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Tab 2: Interaction Testing -->
+                    <TabItem Header="Interaction Testing">
+                        <Grid Margin="16,8,16,16">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="180"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- No element selected message -->
+                            <TextBlock Grid.Row="0" Grid.RowSpan="5"
+                                       Text="Select an element to test interactions"
                                        Foreground="{StaticResource TextSecondaryBrush}"
                                        FontStyle="Italic"
+                                       VerticalAlignment="Center" HorizontalAlignment="Center"
                                        Visibility="{Binding SelectedElement, Converter={StaticResource NullToVisibilityConverter}}"/>
 
-                            <StackPanel Visibility="{Binding SelectedElement, Converter={StaticResource NotNullToVisibilityConverter}}">
+                            <!-- Interaction controls (visible when element selected) -->
+                            <StackPanel Grid.Row="0"
+                                        Visibility="{Binding SelectedElement, Converter={StaticResource NotNullToVisibilityConverter}}">
                                 <TextBlock Text="{Binding SelectedElement.DisplayName}"
-                                           FontSize="14" FontWeight="SemiBold"
-                                           TextWrapping="Wrap" Margin="0,0,0,16"/>
+                                           FontSize="13" FontWeight="SemiBold"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"
+                                           TextTrimming="CharacterEllipsis" MaxHeight="40"/>
 
-                                <!-- Properties -->
-                                <Border Background="{StaticResource BackgroundBrush}"
-                                        CornerRadius="4" Padding="12">
-                                    <TextBlock Text="{Binding SelectedElement.Details}"
-                                               FontFamily="Consolas" FontSize="12"
-                                               TextWrapping="Wrap"/>
-                                </Border>
-
-                                <!-- Value -->
-                                <TextBlock Text="Value:" FontWeight="SemiBold" Margin="0,16,0,4"
-                                           Visibility="{Binding SelectedElement.Value, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                <Border Background="{StaticResource BackgroundBrush}"
-                                        CornerRadius="4" Padding="12"
-                                        Visibility="{Binding SelectedElement.Value, Converter={StaticResource StringToVisibilityConverter}}">
-                                    <TextBlock Text="{Binding SelectedElement.Value}"
-                                               FontFamily="Consolas" FontSize="12"
-                                               TextWrapping="Wrap"/>
-                                </Border>
-
-                                <!-- Tree Path -->
-                                <TextBlock Text="Tree Path:" FontWeight="SemiBold" Margin="0,16,0,4"/>
-                                <Border Background="{StaticResource BackgroundBrush}"
-                                        CornerRadius="4" Padding="12">
-                                    <TextBox Text="{Binding SelectedElement.TreePath, Mode=OneWay}"
-                                             FontFamily="Consolas" FontSize="11"
-                                             TextWrapping="Wrap" IsReadOnly="True"
-                                             BorderThickness="0" Background="Transparent"/>
-                                </Border>
-
-                                <!-- Finder Code -->
-                                <TextBlock Text="C# Finder Code:" FontWeight="SemiBold" Margin="0,16,0,4"/>
-                                <Border Background="{StaticResource BackgroundBrush}"
-                                        CornerRadius="4" Padding="12">
-                                    <TextBox Text="{Binding SelectedElement.FinderCodeSnippet, Mode=OneWay}"
-                                             FontFamily="Consolas" FontSize="11"
-                                             TextWrapping="Wrap" IsReadOnly="True"
-                                             BorderThickness="0" Background="Transparent"
-                                             AcceptsReturn="True"/>
-                                </Border>
+                                <!-- Category filter -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Category:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
+                                    <ComboBox ItemsSource="{Binding InteractionCategories}"
+                                              SelectedItem="{Binding InteractionFilterCategory}"
+                                              Width="120" FontSize="12" Padding="6,4"/>
+                                    <Button Content="Test Safe Methods"
+                                            Command="{Binding TryAllAvailableCommand}"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Margin="12,0,0,0" FontSize="11" Padding="10,5"
+                                            ToolTip="Run all available non-destructive read/info methods on this element"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
-                </Grid>
+
+                            <!-- Interaction method list -->
+                            <ListBox Grid.Row="2"
+                                     ItemsSource="{Binding FilteredInteractions}"
+                                     SelectedItem="{Binding SelectedInteraction}"
+                                     Visibility="{Binding SelectedElement, Converter={StaticResource NotNullToVisibilityConverter}}"
+                                     BorderThickness="1" BorderBrush="#E0E0E0"
+                                     Margin="0,0,0,8"
+                                     VirtualizingPanel.IsVirtualizing="True">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:InteractionMethod}">
+                                        <StackPanel Margin="4,3" ToolTip="{Binding ToolTip}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock FontSize="12" FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                                            <Setter Property="Text" Value="{Binding Name}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                                                                    <Setter Property="Foreground" Value="#BDBDBD"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Border Background="#E3F2FD" CornerRadius="3" Padding="5,1" Margin="8,0,0,0"
+                                                        Visibility="{Binding IsAvailable, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <TextBlock Text="{Binding Category}" FontSize="10" Foreground="{StaticResource PrimaryBrush}"/>
+                                                </Border>
+                                                <TextBlock Text=" (needs param)" FontSize="10" Foreground="Gray" VerticalAlignment="Center"
+                                                           Margin="4,0,0,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding RequiresParameter}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Description}" FontSize="10"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="440">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                                                                <Setter Property="Foreground" Value="#E0E0E0"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- Parameter input and Execute button -->
+                            <StackPanel Grid.Row="3"
+                                        Visibility="{Binding SelectedElement, Converter={StaticResource NotNullToVisibilityConverter}}"
+                                        Margin="0,0,0,8">
+                                <!-- Parameter input (shown when selected interaction needs it) -->
+                                <Grid Margin="0,0,0,8"
+                                      Visibility="{Binding SelectedInteraction.RequiresParameter, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                               Text="{Binding SelectedInteraction.ParameterHint}" Margin="0,0,0,4"/>
+                                    <TextBox Grid.Row="1"
+                                             Text="{Binding InteractionParameter, UpdateSourceTrigger=PropertyChanged}"
+                                             Padding="8,6" FontSize="13" FontFamily="Consolas"/>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0"
+                                            Content="{Binding SelectedInteraction.Name, FallbackValue='Select a method', StringFormat='Execute: {0}'}"
+                                            Command="{Binding ExecuteInteractionCommand}"
+                                            Style="{StaticResource PrimaryButton}"
+                                            HorizontalAlignment="Stretch"
+                                            FontSize="13"/>
+                                    <Button Grid.Column="1" Content="Clear Log"
+                                            Command="{Binding ClearInteractionResultsCommand}"
+                                            Margin="8,0,0,0" Padding="12,8"
+                                            FontSize="12" Cursor="Hand"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Interaction Results Log -->
+                            <Border Grid.Row="4" Background="{StaticResource BackgroundBrush}"
+                                    CornerRadius="4" Padding="4"
+                                    Visibility="{Binding SelectedElement, Converter={StaticResource NotNullToVisibilityConverter}}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Interaction Log" FontWeight="SemiBold"
+                                               FontSize="12" Margin="4,2,0,4"/>
+                                    <ListView Grid.Row="1"
+                                              ItemsSource="{Binding InteractionResults}"
+                                              BorderThickness="0" Background="Transparent"
+                                              FontFamily="Consolas" FontSize="11"
+                                              VirtualizingPanel.IsVirtualizing="True"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type models:InteractionResult}">
+                                                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#4CAF50"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Success}" Value="False">
+                                                                    <Setter Property="Foreground" Value="#F44336"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
             </Border>
         </Grid>
 
