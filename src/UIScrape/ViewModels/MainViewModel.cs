@@ -10,6 +10,7 @@ namespace UIScrape.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly UIAutomationService _automationService;
+    private readonly UIInteractionService _interactionService;
     private readonly DispatcherTimer _refreshTimer;
     private CancellationTokenSource? _cancellationTokenSource;
 
@@ -52,9 +53,38 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private List<UIElementInfo> _filteredFlatList = new();
 
+    // === Interaction testing state ===
+
+    [ObservableProperty]
+    private List<InteractionMethod> _availableInteractions = new();
+
+    [ObservableProperty]
+    private InteractionMethod? _selectedInteraction;
+
+    [ObservableProperty]
+    private string _interactionParameter = string.Empty;
+
+    [ObservableProperty]
+    private ObservableCollection<InteractionResult> _interactionResults = new();
+
+    [ObservableProperty]
+    private bool _isInteracting;
+
+    [ObservableProperty]
+    private string _interactionFilterCategory = "All";
+
+    [ObservableProperty]
+    private List<InteractionMethod> _filteredInteractions = new();
+
+    public List<string> InteractionCategories { get; } = new()
+    {
+        "All", "Patterns", "Focus", "Mouse", "Keyboard", "Messages", "Utility"
+    };
+
     public MainViewModel()
     {
         _automationService = new UIAutomationService();
+        _interactionService = new UIInteractionService();
         _refreshTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(RefreshIntervalSeconds)
@@ -78,6 +108,33 @@ public partial class MainViewModel : ObservableObject
             TotalElementCount = 0;
             StatusMessage = "Select an application to inspect";
         }
+    }
+
+    partial void OnSelectedElementChanged(UIElementInfo? value)
+    {
+        // Update available interactions when element selection changes
+        if (value != null)
+        {
+            AvailableInteractions = _interactionService.GetAvailableInteractions(value);
+            ApplyInteractionFilter();
+        }
+        else
+        {
+            AvailableInteractions = new List<InteractionMethod>();
+            FilteredInteractions = new List<InteractionMethod>();
+        }
+        SelectedInteraction = null;
+        InteractionParameter = string.Empty;
+    }
+
+    partial void OnSelectedInteractionChanged(InteractionMethod? value)
+    {
+        InteractionParameter = string.Empty;
+    }
+
+    partial void OnInteractionFilterCategoryChanged(string value)
+    {
+        ApplyInteractionFilter();
     }
 
     partial void OnIsAutoRefreshEnabledChanged(bool value)
@@ -180,6 +237,106 @@ public partial class MainViewModel : ObservableObject
         ShowTreeView = !ShowTreeView;
     }
 
+    [RelayCommand]
+    private async Task ExecuteInteractionAsync()
+    {
+        if (SelectedElement == null || SelectedInteraction == null || IsInteracting)
+            return;
+
+        if (!SelectedInteraction.IsAvailable)
+        {
+            StatusMessage = $"Interaction '{SelectedInteraction.Name}' is not available for this element";
+            return;
+        }
+
+        if (SelectedInteraction.RequiresParameter && string.IsNullOrWhiteSpace(InteractionParameter))
+        {
+            StatusMessage = $"Parameter required: {SelectedInteraction.ParameterHint}";
+            return;
+        }
+
+        IsInteracting = true;
+        StatusMessage = $"Executing: {SelectedInteraction.Name}...";
+
+        try
+        {
+            var result = await _interactionService.ExecuteInteractionAsync(
+                SelectedElement,
+                SelectedInteraction.Name,
+                SelectedInteraction.RequiresParameter ? InteractionParameter : null);
+
+            InteractionResults.Insert(0, result);
+
+            StatusMessage = result.Success
+                ? $"Success: {SelectedInteraction.Name}"
+                : $"Failed: {SelectedInteraction.Name} - {result.Message}";
+        }
+        catch (Exception ex)
+        {
+            var result = new InteractionResult
+            {
+                MethodName = SelectedInteraction.Name,
+                Parameter = InteractionParameter,
+                Success = false,
+                Message = $"Unexpected error: {ex.Message}"
+            };
+            InteractionResults.Insert(0, result);
+            StatusMessage = $"Error executing {SelectedInteraction.Name}: {ex.Message}";
+        }
+        finally
+        {
+            IsInteracting = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task TryAllAvailableAsync()
+    {
+        if (SelectedElement == null || IsInteracting)
+            return;
+
+        IsInteracting = true;
+        StatusMessage = "Running all available non-destructive interactions...";
+
+        try
+        {
+            // Only try read-only / non-destructive methods
+            var safeReadMethods = new HashSet<string>
+            {
+                "GetValue", "GetRangeInfo", "GetSupportedViews", "GetGridInfo",
+                "GetTableHeaders", "GetFullText", "GetSelectedText",
+                "SetFocus", "MouseHover", "ScrollIntoView",
+                "HighlightElement", "GetAllProperties"
+            };
+
+            var available = AvailableInteractions.Where(m => m.IsAvailable && safeReadMethods.Contains(m.Name)).ToList();
+
+            foreach (var method in available)
+            {
+                var result = await _interactionService.ExecuteInteractionAsync(
+                    SelectedElement, method.Name);
+                InteractionResults.Insert(0, result);
+            }
+
+            StatusMessage = $"Completed {available.Count} safe interaction tests";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error during batch test: {ex.Message}";
+        }
+        finally
+        {
+            IsInteracting = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearInteractionResults()
+    {
+        InteractionResults.Clear();
+        StatusMessage = "Interaction log cleared";
+    }
+
     private void ApplyFilter()
     {
         if (string.IsNullOrWhiteSpace(FilterText))
@@ -196,6 +353,20 @@ public partial class MainViewModel : ObservableObject
                     e.ControlType.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     e.ClassName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     e.Value.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+    }
+
+    private void ApplyInteractionFilter()
+    {
+        if (InteractionFilterCategory == "All")
+        {
+            FilteredInteractions = AvailableInteractions.ToList();
+        }
+        else
+        {
+            FilteredInteractions = AvailableInteractions
+                .Where(m => m.Category == InteractionFilterCategory)
                 .ToList();
         }
     }

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Automation;
 
 namespace UIScrape.Models;
 
@@ -16,11 +17,18 @@ public class UIElementInfo
     public int ChildCount { get; set; }
     public int Depth { get; set; }
 
-    // New properties for element identification
+    // Properties for element identification
     public string TreePath { get; set; } = string.Empty;
     public int SiblingIndex { get; set; }
     public int[] RuntimeId { get; set; } = Array.Empty<int>();
     public string ProcessName { get; set; } = string.Empty;
+
+    // Supported automation patterns detected during scan
+    public List<string> SupportedPatterns { get; set; } = new();
+
+    // Reference to the underlying AutomationElement for interaction
+    // This may become stale if the target app's UI changes
+    public AutomationElement? AutomationElementRef { get; set; }
 
     public ObservableCollection<UIElementInfo> Children { get; set; } = new();
 
@@ -48,6 +56,10 @@ public class UIElementInfo
         ? string.Join(".", RuntimeId)
         : "(none)";
 
+    public string SupportedPatternsString => SupportedPatterns.Count > 0
+        ? string.Join(", ", SupportedPatterns)
+        : "(none)";
+
     public string Details
     {
         get
@@ -64,7 +76,8 @@ public class UIElementInfo
                 $"Is Enabled: {IsEnabled}",
                 $"Is Offscreen: {IsOffscreen}",
                 $"Bounding Rect: {BoundingRectangle}",
-                $"Children: {ChildCount}"
+                $"Children: {ChildCount}",
+                $"Supported Patterns: {SupportedPatternsString}"
             };
 
             if (!string.IsNullOrEmpty(Value))
