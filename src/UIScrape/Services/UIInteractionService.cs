@@ -1833,8 +1833,7 @@ public class UIInteractionService
                 $"LabeledBy: {(element.Current.LabeledBy != null ? element.Current.LabeledBy.Current.Name : "(none)")}",
                 $"AcceleratorKey: {element.Current.AcceleratorKey}",
                 $"AccessKey: {element.Current.AccessKey}",
-                $"HelpText: {element.Current.HelpText}",
-                $"Culture: {element.Current.Culture}"
+                $"HelpText: {element.Current.HelpText}"
             };
 
             result.Success = true;
